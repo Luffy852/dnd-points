@@ -1,0 +1,630 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="color-scheme" content="dark">
+<meta name="description" content="D&D 5e 角色属性生成器：4d6取高、随机数值组、27点点数购买三种模式">
+<title>D&D 5e 角色属性生成器</title>
+<style>
+/* ============ 设计令牌 ============ */
+:root{
+  --ink:#1a1a2e;          /* 深色文字 / 金色底上的字 */
+  --bg-1:#1a1a2e;
+  --bg-2:#16213e;
+  --panel:#2d2d44;
+  --panel-2:#3d3d5c;
+  --panel-3:#1e1e32;
+  --border:#4a4a6a;
+  --border-strong:#5a5a7a;
+  --gold:#ffd700;
+  --gold-2:#ffaa00;
+  --teal:#4ecdc4;
+  --teal-2:#44a08d;
+  --red:#ff6b6b;
+  --red-2:#ee5a5a;
+  --text:#e8e8e8;
+  --muted:#a0a0a0;
+  --ease:0.3s ease;
+}
+
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+
+body{
+  font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;
+  background:linear-gradient(135deg,var(--bg-1) 0%,var(--bg-2) 100%);
+  color:var(--text);
+  min-height:100vh;
+  padding:20px;
+}
+.container{max-width:1200px;margin:0 auto}
+
+h1{
+  text-align:center;color:var(--gold);margin-bottom:10px;
+  text-shadow:2px 2px 4px rgba(0,0,0,.5);font-size:2.5em;
+}
+.subtitle{text-align:center;color:var(--muted);margin-bottom:30px;font-size:.9em}
+
+/* ============ 标签页 ============ */
+.tabs{display:flex;justify-content:center;gap:10px;margin-bottom:30px;flex-wrap:wrap}
+
+.tab-button{
+  background:var(--panel);color:var(--text);border:2px solid var(--border);
+  padding:15px 30px;font-size:1.1em;cursor:pointer;border-radius:8px;
+  font-weight:bold;position:relative;overflow:hidden;
+  transition:background var(--ease),border-color var(--ease),transform var(--ease),box-shadow var(--ease);
+}
+.tab-button::before{
+  content:'';position:absolute;top:0;left:-100%;width:100%;height:100%;
+  background:linear-gradient(90deg,transparent,rgba(255,215,0,.2),transparent);
+  transition:left .5s;
+}
+.tab-button:hover::before{left:100%}
+.tab-button:hover{
+  background:var(--panel-2);border-color:var(--gold);transform:translateY(-2px);
+  box-shadow:0 4px 15px rgba(255,215,0,.2);
+}
+.tab-button.active{
+  background:linear-gradient(135deg,var(--gold) 0%,var(--gold-2) 100%);
+  color:var(--ink);border-color:var(--gold);box-shadow:0 4px 20px rgba(255,215,0,.4);
+}
+
+.tab-content{
+  display:none;background:rgba(45,45,68,.8);border-radius:12px;padding:30px;
+  backdrop-filter:blur(10px);border:1px solid var(--border);
+}
+.tab-content.active{display:block;animation:fadeIn .3s ease}
+@keyframes fadeIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+
+/* ============ 控制面板 ============ */
+.control-panel{
+  background:rgba(30,30,50,.6);border-radius:8px;padding:20px;
+  margin-bottom:20px;border:1px solid var(--border);
+}
+.control-group{display:flex;align-items:center;gap:15px;margin-bottom:15px;flex-wrap:wrap}
+.control-group:last-child{margin-bottom:0}
+label{font-weight:bold;color:var(--gold);min-width:120px}
+
+.number-control{display:flex;align-items:center;justify-content:center;gap:5px}
+
+/* 数字输入：全局一套样式，购买表内不再重复定义 */
+input[type="number"]{
+  width:60px;background:var(--panel);border:2px solid var(--border);color:var(--text);
+  padding:8px;border-radius:5px;font-size:1em;text-align:center;
+  transition:border-color var(--ease),box-shadow var(--ease);
+  -moz-appearance:textfield;
+}
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}
+input[type="number"]:focus{outline:none;border-color:var(--gold);box-shadow:0 0 10px rgba(255,215,0,.3)}
+
+.btn-adjust{
+  width:30px;height:30px;padding:0;display:flex;align-items:center;justify-content:center;
+  background:var(--panel-2);border:1px solid var(--border);color:var(--text);
+  font-size:1.2em;cursor:pointer;border-radius:4px;line-height:1;
+  transition:background .2s ease,border-color .2s ease,transform .2s ease;
+}
+.btn-adjust:hover{background:#4a4a6a;border-color:var(--gold);transform:scale(1.1)}
+.btn-adjust:active{transform:scale(.95)}
+.btn-adjust:disabled{opacity:.3;cursor:not-allowed;transform:none}
+
+.btn-generate{
+  background:linear-gradient(135deg,var(--gold) 0%,var(--gold-2) 100%);
+  color:var(--ink);border:none;padding:12px 35px;font-size:1.1em;font-weight:bold;
+  cursor:pointer;border-radius:6px;position:relative;overflow:hidden;
+  transition:transform var(--ease),box-shadow var(--ease);
+}
+.btn-generate::after{
+  content:'';position:absolute;top:50%;left:50%;width:0;height:0;border-radius:50%;
+  background:rgba(255,255,255,.3);transform:translate(-50%,-50%);
+  transition:width .6s,height .6s;
+}
+.btn-generate:active::after{width:300px;height:300px}
+.btn-generate:hover{transform:translateY(-2px);box-shadow:0 6px 20px rgba(255,215,0,.4)}
+.btn-generate:active{transform:translateY(0)}
+
+.btn-reset{
+  background:linear-gradient(135deg,var(--red) 0%,var(--red-2) 100%);
+  color:#fff;border:none;padding:10px 25px;font-size:1em;font-weight:bold;
+  cursor:pointer;border-radius:6px;margin-left:10px;
+  transition:transform var(--ease),box-shadow var(--ease);
+}
+.btn-reset:hover{transform:translateY(-2px);box-shadow:0 6px 20px rgba(255,107,107,.4)}
+
+/* ============ 结果区 ============ */
+.results{margin-top:20px}
+.result-card{
+  background:rgba(30,30,50,.8);border-radius:8px;padding:20px;margin-bottom:15px;
+  border:1px solid var(--border);
+  transition:border-color var(--ease),box-shadow var(--ease),transform var(--ease);
+}
+.result-card:hover{
+  border-color:var(--gold);box-shadow:0 4px 15px rgba(255,215,0,.2);transform:translateY(-2px);
+}
+.result-header{
+  display:flex;justify-content:space-between;align-items:center;
+  margin-bottom:15px;padding-bottom:10px;border-bottom:1px solid var(--border);
+}
+.result-title{font-weight:bold;color:var(--gold);font-size:1.1em}
+.total-sum{
+  background:linear-gradient(135deg,rgba(255,215,0,.2) 0%,rgba(255,170,0,.2) 100%);
+  border:1px solid var(--gold);padding:8px 15px;border-radius:5px;font-weight:bold;
+}
+.total-sum-label{color:var(--gold);font-size:.9em}
+.total-sum-value{color:var(--teal);font-size:1.3em;font-weight:bold}
+
+.attributes-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:10px}
+.attribute-item{
+  background:rgba(45,45,68,.6);border-radius:6px;padding:10px;
+  border:1px solid var(--border-strong);text-align:center;
+  transition:border-color var(--ease),transform var(--ease);
+}
+.attribute-item:hover{border-color:var(--gold);transform:scale(1.02)}
+.attribute-name{font-weight:bold;color:var(--gold);margin-bottom:5px;font-size:.9em}
+.attribute-value{
+  font-size:1.5em;font-weight:bold;color:var(--teal);text-align:center;margin:5px 0;
+  text-shadow:0 0 10px rgba(78,205,196,.3);
+}
+.attribute-modifier{text-align:center;color:var(--muted);font-size:.8em}
+.attribute-modifier span{color:var(--teal);font-weight:bold;font-size:1.1em}
+
+.sorted-values{display:flex;gap:10px;flex-wrap:wrap}
+.sorted-value{
+  background:linear-gradient(135deg,var(--teal) 0%,var(--teal-2) 100%);
+  color:var(--ink);padding:15px 25px;border-radius:6px;font-weight:bold;font-size:1.5em;
+  min-width:60px;text-align:center;box-shadow:0 4px 15px rgba(78,205,196,.3);
+  transition:transform var(--ease),box-shadow var(--ease);
+}
+.sorted-value:hover{transform:translateY(-3px) scale(1.05);box-shadow:0 6px 20px rgba(78,205,196,.5)}
+
+.sort-hint{color:var(--muted);margin-bottom:10px}
+.tip-box{
+  padding:10px;background:rgba(78,205,196,.1);border-radius:6px;border:1px solid var(--teal);
+}
+.tip-box p{color:var(--teal);font-size:.9em}
+
+/* ============ 点数购买表 ============ */
+.buy-calculator{overflow-x:auto}
+.buy-table{width:100%;border-collapse:collapse;margin-top:20px;font-size:.95em}
+.buy-table th,.buy-table td{
+  padding:12px 15px;text-align:center;border:1px solid var(--border);vertical-align:middle;
+}
+.buy-table th{
+  background:linear-gradient(135deg,var(--gold) 0%,var(--gold-2) 100%);
+  color:var(--ink);font-weight:bold;
+}
+.buy-table tbody tr:nth-child(even){background:rgba(45,45,68,.4)}
+.buy-table tbody tr:hover{background:rgba(255,215,0,.1)}
+
+.value-cell{display:flex;flex-direction:column;align-items:center;gap:2px}
+.value-number{font-size:1.2em;font-weight:bold;color:var(--teal)}
+.value-number.is-high{color:var(--gold)}
+.value-number.is-low{color:var(--red)}
+.cost-label{font-size:.8em;color:var(--muted)}
+.attribute-name-cell{font-weight:bold;color:var(--gold);text-align:left;min-width:100px}
+
+.points-display{
+  background:linear-gradient(135deg,rgba(255,215,0,.1) 0%,rgba(255,170,0,.1) 100%);
+  border:2px solid var(--gold);border-radius:8px;padding:20px;text-align:center;
+  margin-top:20px;position:relative;overflow:hidden;
+}
+.points-display::before{
+  content:'';position:absolute;top:-50%;left:-50%;width:200%;height:200%;
+  background:linear-gradient(45deg,transparent,rgba(255,215,0,.1),transparent);
+  animation:shine 3s infinite;
+}
+@keyframes shine{
+  0%{transform:translateX(-100%) rotate(45deg)}
+  100%{transform:translateX(100%) rotate(45deg)}
+}
+.points-display h3{color:var(--gold);margin-bottom:10px;position:relative;z-index:1}
+.points-remaining{
+  font-size:2.5em;font-weight:bold;color:var(--teal);
+  text-shadow:0 0 20px rgba(78,205,196,.5);position:relative;z-index:1;
+}
+.points-display.overspent .points-remaining{color:var(--red);text-shadow:0 0 20px rgba(255,107,107,.5)}
+
+.cost-reference{
+  margin-top:20px;padding:15px;background:rgba(30,30,50,.6);
+  border-radius:8px;border:1px solid var(--border);
+}
+.cost-reference h4{color:var(--gold);margin-bottom:10px}
+.cost-table{width:100%;border-collapse:collapse;font-size:.9em}
+.cost-table td{padding:5px 10px;text-align:center;border:1px solid var(--border-strong);font-size:14px}
+.cost-table .attribute-value{background:rgba(100,100,100,.2);font-weight:bold;color:var(--text)}
+.cost-table .point-cost{color:var(--gold);font-weight:bold}
+.cost-table tr:nth-child(even){background:rgba(45,45,68,.4)}
+.cost-table tr:nth-child(even) .attribute-value{background:rgba(100,100,100,.3)}
+
+/* ============ 通用块 ============ */
+.empty-state{text-align:center;padding:40px;color:var(--muted)}
+.empty-state svg{width:80px;height:80px;margin-bottom:15px;opacity:.5}
+
+.mode-description{
+  background:rgba(78,205,196,.1);border-left:3px solid var(--teal);
+  padding:10px 15px;margin-bottom:20px;border-radius:0 5px 5px 0;
+}
+.mode-description p{color:var(--muted);font-size:.9em;line-height:1.5}
+.mode-description strong{color:var(--teal)}
+
+.points-total{color:var(--gold);font-weight:bold;font-size:1.2em}
+
+.sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+
+/* ============ 响应式 ============ */
+@media (max-width:768px){
+  .tabs{flex-direction:column;align-items:center}
+  .tab-button{width:100%;max-width:300px}
+  .attributes-grid{grid-template-columns:repeat(3,1fr);gap:8px}
+  .attribute-item{padding:8px}
+  .attribute-name{font-size:.8em}
+  .attribute-value{font-size:1.2em}
+  .attribute-modifier{font-size:.7em}
+  .control-group{flex-direction:column;align-items:flex-start}
+  .buy-table{font-size:.85em}
+  .buy-table th,.buy-table td{padding:8px 5px}
+}
+@media (max-width:480px){
+  .attributes-grid{grid-template-columns:repeat(2,1fr);gap:6px}
+  .attribute-item{padding:6px}
+  .attribute-name{font-size:.75em}
+  .attribute-value{font-size:1em}
+  .attribute-modifier{font-size:.65em}
+}
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation-duration:.01ms !important;animation-iteration-count:1 !important;transition-duration:.01ms !important}
+}
+</style>
+</head>
+<body>
+
+<!-- 图标雪碧图：空状态图标只定义一次，多处用 <use> 引用 -->
+<svg class="sr-only" aria-hidden="true" focusable="false">
+  <symbol id="icon-empty" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+    <circle cx="12" cy="12" r="10"></circle>
+    <path d="M8 12h8"></path>
+    <path d="M12 8v8"></path>
+  </symbol>
+</svg>
+
+<div class="container">
+  <h1>🎲 D&amp;D 5e 角色属性生成器</h1>
+  <p class="subtitle">快速创建您的角色属性，支持多种生成方式</p>
+
+  <div class="tabs" role="tablist" aria-label="生成模式">
+    <button class="tab-button active" type="button" role="tab" aria-selected="true"  aria-controls="generate-tab" data-action="tab" data-tab="generate">🎯 属性生成模式</button>
+    <button class="tab-button"        type="button" role="tab" aria-selected="false" aria-controls="random-tab"   data-action="tab" data-tab="random">🎲 随机点数模式</button>
+    <button class="tab-button"        type="button" role="tab" aria-selected="false" aria-controls="buy-tab"      data-action="tab" data-tab="buy">💰 点数购买模式</button>
+  </div>
+
+  <!-- 属性生成模式 -->
+  <div id="generate-tab" class="tab-content active" role="tabpanel" aria-label="属性生成模式">
+    <div class="mode-description">
+      <p><strong>📝 模式说明：</strong>直接生成一套完整的6大属性值（力量、敏捷、体质、智力、感知、魅力），并自动计算对应的调整值和属性总和。</p>
+    </div>
+    <div class="control-panel">
+      <div class="control-group">
+        <button class="btn-generate" type="button" data-action="roll">🎲 生成属性</button>
+      </div>
+    </div>
+    <div id="generateResults" class="results">
+      <div class="empty-state">
+        <svg aria-hidden="true"><use href="#icon-empty"></use></svg>
+        <p>点击上方按钮开始生成属性</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- 随机点数模式 -->
+  <div id="random-tab" class="tab-content" role="tabpanel">
+    <div class="mode-description">
+      <p><strong>📝 模式说明：</strong>生成多组随机数值，每组6个数值按从大到小排列。您可以自由决定如何将这些数值分配到具体属性中。</p>
+    </div>
+    <div class="control-panel">
+      <div class="control-group">
+        <label for="groupCount">生成组数：</label>
+        <div class="number-control">
+          <button class="btn-adjust" type="button" data-action="step" data-target="groupCount" data-delta="-1" aria-label="减少组数">−</button>
+          <input type="number" id="groupCount" min="1" max="10" value="1" readonly aria-label="生成组数">
+          <button class="btn-adjust" type="button" data-action="step" data-target="groupCount" data-delta="1" aria-label="增加组数">+</button>
+        </div>
+        <button class="btn-generate" type="button" data-action="rollGroups">生成随机数值</button>
+      </div>
+    </div>
+    <div id="randomResults" class="results">
+      <div class="empty-state">
+        <svg aria-hidden="true"><use href="#icon-empty"></use></svg>
+        <p>点击上方按钮开始生成随机数值</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- 点数购买模式 -->
+  <div id="buy-tab" class="tab-content" role="tabpanel">
+    <div class="mode-description">
+      <p><strong>📝 模式说明：</strong>使用27点购买系统，您可以精确控制每个属性的数值。基础值范围8-15，可以添加种族或背景加值。</p>
+    </div>
+    <div class="control-panel">
+      <div class="control-group">
+        <label>总点数：</label>
+        <span class="points-total" id="totalPointsLabel">27</span>
+        <button class="btn-reset" type="button" data-action="reset">重置</button>
+      </div>
+    </div>
+
+    <div class="buy-calculator">
+      <table class="buy-table">
+        <thead>
+          <tr>
+            <th style="min-width:100px;">属性</th>
+            <th>基础值 (8-15)</th>
+            <th>种族/背景加值</th>
+            <th>最终值</th>
+            <th>调整值</th>
+          </tr>
+        </thead>
+        <tbody id="buyTableBody"></tbody>
+      </table>
+    </div>
+
+    <div class="points-display" id="pointsDisplay">
+      <h3>剩余点数</h3>
+      <div class="points-remaining" id="pointsRemaining" role="status" aria-live="polite">27</div>
+    </div>
+
+    <div class="cost-reference">
+      <h4>📊 属性值消耗点数对照表</h4>
+      <table class="cost-table"><tbody id="costTableBody"></tbody></table>
+    </div>
+  </div>
+</div>
+
+<script>
+(() => {
+  'use strict';
+
+  /* ================= 配置：所有魔法数字集中于此 ================= */
+  const TOTAL_POINTS = 27;                       // 标准 27 点购买
+  const BASE_RANGE   = { min: 8,  max: 15 };     // 可购买区间
+  const BONUS_RANGE  = { min: -2, max: 2  };     // 种族/背景加值
+  const GROUP_RANGE  = { min: 1,  max: 10 };     // 随机组数
+  const HIGH_THRESHOLD = 16;                     // 高亮：最终值 ≥ 16
+  const LOW_THRESHOLD  = 7;                      // 警示：最终值 ≤ 7
+
+  // 唯一数据源：点数对照表、消耗计算、购买上限均由它派生
+  const POINT_COSTS = { 8:0, 9:1, 10:2, 11:3, 12:4, 13:5, 14:7, 15:9 };
+  const COST_KEYS = Object.keys(POINT_COSTS).map(Number).sort((a, b) => a - b);
+
+  const ATTRIBUTES = [
+    { name:'力量', short:'STR' }, { name:'敏捷', short:'DEX' }, { name:'体质', short:'CON' },
+    { name:'智力', short:'INT' }, { name:'感知', short:'WIS' }, { name:'魅力', short:'CHA' }
+  ];
+
+  /* ================= 纯函数：与 DOM 无关，便于测试 ================= */
+  const clamp = (v, { min, max }) => Math.min(max, Math.max(min, v));
+  const modifierOf = v => Math.floor((v - 10) / 2);
+  const formatModifier = m => (m >= 0 ? '+' + m : String(m));
+  const costOf = base => POINT_COSTS[base] ?? 0;
+
+  /** 4d6 去掉最低骰：总和减去最小值，等价于排序后取高三骰 */
+  function roll4d6DropLowest() {
+    let sum = 0, lowest = 7;
+    for (let i = 0; i < 4; i++) {
+      const r = Math.floor(Math.random() * 6) + 1;
+      sum += r;
+      if (r < lowest) lowest = r;
+    }
+    return sum - lowest;
+  }
+
+  /** 渲染一个属性徽章（生成模式 / 随机模式共用） */
+  const attrBadge = ({ name, short }, value) => `
+    <div class="attribute-item">
+      <div class="attribute-name">${name} (${short})</div>
+      <div class="attribute-value">${value}</div>
+      <div class="attribute-modifier">调整值: <span>${formatModifier(modifierOf(value))}</span></div>
+    </div>`;
+
+  const totalBadge = sum => `
+    <div class="total-sum">
+      <span class="total-sum-label">属性总和：</span>
+      <span class="total-sum-value">${sum}</span>
+    </div>`;
+
+  /* ================= DOM 引用（一次性缓存，避免 18 次 getElementById） ================= */
+  const $ = id => document.getElementById(id);
+  const el = {
+    tabs:        document.querySelectorAll('.tab-button'),
+    panels:      document.querySelectorAll('.tab-content'),
+    generateOut: $('generateResults'),
+    randomOut:   $('randomResults'),
+    groupCount:  $('groupCount'),
+    tbody:       $('buyTableBody'),
+    costBody:    $('costTableBody'),
+    pointsBox:   $('pointsDisplay'),
+    pointsLeft:  $('pointsRemaining'),
+    totalLabel:  $('totalPointsLabel'),
+  };
+
+  /* ================= 状态：单一真源，DOM 只是它的投影 ================= */
+  let groupCount = 1;
+  const build = () => ATTRIBUTES.map(() => ({ base: BASE_RANGE.min, bonus: 0 }));
+  let buildState = build();
+  let rowRefs = [];
+
+  /* ---------- 标签页切换 ---------- */
+  function switchTab(tabName) {
+    el.tabs.forEach(btn => {
+      const on = btn.dataset.tab === tabName;
+      btn.classList.toggle('active', on);
+      btn.setAttribute('aria-selected', String(on));
+    });
+    el.panels.forEach(p => p.classList.toggle('active', p.id === tabName + '-tab'));
+  }
+
+  /* ---------- 模式一：属性生成 ---------- */
+  function renderAttributes() {
+    const values = ATTRIBUTES.map(attr => ({ attr, value: roll4d6DropLowest() }));
+    const sum = values.reduce((acc, v) => acc + v.value, 0);
+    el.generateOut.innerHTML = `
+      <div class="result-card">
+        <div class="result-header">
+          <span class="result-title">角色属性</span>
+          ${totalBadge(sum)}
+        </div>
+        <div class="attributes-grid">
+          ${values.map(v => attrBadge(v.attr, v.value)).join('')}
+        </div>
+      </div>`;
+  }
+
+  /* ---------- 模式二：随机数值组 ---------- */
+  function renderRandomGroups() {
+    const html = [];
+    for (let g = 0; g < groupCount; g++) {
+      const values = Array.from({ length: 6 }, roll4d6DropLowest).sort((a, b) => b - a);
+      const sum = values.reduce((acc, v) => acc + v, 0);
+      html.push(`
+        <div class="result-card">
+          <div class="result-header">
+            <span class="result-title">第 ${g + 1} 组随机数值</span>
+            ${totalBadge(sum)}
+          </div>
+          <div style="margin-bottom:15px">
+            <p class="sort-hint">从大到小排列的数值：</p>
+            <div class="sorted-values">
+              ${values.map(v => `<div class="sorted-value">${v}</div>`).join('')}
+            </div>
+          </div>
+          <div class="tip-box">
+            <p>💡 提示：您可以将这些数值手动分配到任意属性中</p>
+          </div>
+        </div>`);
+    }
+    el.randomOut.innerHTML = html.join('');
+  }
+
+  /* ---------- 模式三：点数购买 ---------- */
+
+  /** 建表一次：之后只更新文本与样式，不再重建 innerHTML */
+  function initBuyTable() {
+    el.tbody.innerHTML = buildState.map((_, i) => {
+      const attr = ATTRIBUTES[i];
+      return `
+      <tr>
+        <td class="attribute-name-cell">${attr.name} (${attr.short})</td>
+        <td>
+          <div class="number-control">
+            <button class="btn-adjust" type="button" data-action="step" data-target="base" data-index="${i}" data-delta="-1" aria-label="${attr.name}基础值减1">−</button>
+            <input type="number" id="base-${i}" min="${BASE_RANGE.min}" max="${BASE_RANGE.max}" value="8" readonly aria-label="${attr.name}基础值">
+            <button class="btn-adjust" type="button" data-action="step" data-target="base" data-index="${i}" data-delta="1" aria-label="${attr.name}基础值加1">+</button>
+          </div>
+        </td>
+        <td>
+          <div class="number-control">
+            <button class="btn-adjust" type="button" data-action="step" data-target="bonus" data-index="${i}" data-delta="-1" aria-label="${attr.name}加值减1">−</button>
+            <input type="number" id="bonus-${i}" min="${BONUS_RANGE.min}" max="${BONUS_RANGE.max}" value="0" readonly aria-label="${attr.name}种族背景加值">
+            <button class="btn-adjust" type="button" data-action="step" data-target="bonus" data-index="${i}" data-delta="1" aria-label="${attr.name}加值加1">+</button>
+          </div>
+        </td>
+        <td><div class="value-cell"><span class="value-number"></span><span class="cost-label"></span></div></td>
+        <td class="modifier-cell"></td>
+      </tr>`;
+    }).join('');
+
+    rowRefs = buildState.map((_, i) => ({
+      baseInput:  $('base-' + i),
+      bonusInput: $('bonus-' + i),
+      minusBase:  el.tbody.querySelector(`[data-target="base"][data-index="${i}"][data-delta="-1"]`),
+      plusBase:   el.tbody.querySelector(`[data-target="base"][data-index="${i}"][data-delta="1"]`),
+      minusBonus: el.tbody.querySelector(`[data-target="bonus"][data-index="${i}"][data-delta="-1"]`),
+      plusBonus:  el.tbody.querySelector(`[data-target="bonus"][data-index="${i}"][data-delta="1"]`),
+      valueNum:   el.tbody.rows[i].querySelector('.value-number'),
+      costLabel:  el.tbody.rows[i].querySelector('.cost-label'),
+      modifier:   el.tbody.rows[i].querySelector('.modifier-cell'),
+    }));
+  }
+
+  /** 由 state 推导全部 UI —— 单向数据流，无隐藏状态 */
+  function renderBuy() {
+    let spent = 0;
+
+    buildState.forEach((s, i) => {
+      const r = rowRefs[i];
+      s.base  = clamp(s.base,  BASE_RANGE);
+      s.bonus = clamp(s.bonus, BONUS_RANGE);
+
+      const finalValue = s.base + s.bonus;
+      const cost = costOf(s.base);
+      spent += cost;
+
+      r.baseInput.value  = s.base;
+      r.bonusInput.value = s.bonus;
+      r.valueNum.textContent   = finalValue;
+      r.costLabel.textContent  = `消耗 ${cost} 点`;
+      r.modifier.textContent   = formatModifier(modifierOf(finalValue));
+
+      r.valueNum.classList.toggle('is-high', finalValue >= HIGH_THRESHOLD);
+      r.valueNum.classList.toggle('is-low',  finalValue <= LOW_THRESHOLD);
+
+      r.minusBase.disabled  = s.base  <= BASE_RANGE.min;
+      r.plusBase.disabled   = s.base  >= BASE_RANGE.max;
+      r.minusBonus.disabled = s.bonus <= BONUS_RANGE.min;
+      r.plusBonus.disabled  = s.bonus >= BONUS_RANGE.max;
+    });
+
+    const remaining = TOTAL_POINTS - spent;
+    const overspent = remaining < 0;
+    el.pointsLeft.textContent = overspent ? `${remaining} (超出!)` : String(remaining);
+    el.pointsBox.classList.toggle('overspent', overspent);
+  }
+
+  /** 点数对照表由 POINT_COSTS 渲染，杜绝两处数据不同步 */
+  function initCostTable() {
+    const perRow = 4;
+    const rows = [];
+    for (let i = 0; i < COST_KEYS.length; i += perRow) {
+      rows.push('<tr>' + COST_KEYS.slice(i, i + perRow).map(v =>
+        `<td class="attribute-value">${v}</td><td class="point-cost">${POINT_COSTS[v]}</td>`
+      ).join('') + '</tr>');
+    }
+    el.costBody.innerHTML = rows.join('');
+  }
+
+  /* ---------- 统一事件入口：事件委托取代全部内联 onclick ---------- */
+  const ACTIONS = {
+    tab: (d) => switchTab(d.tab),
+    roll: () => renderAttributes(),
+    rollGroups: () => renderRandomGroups(),
+    reset: () => { buildState = build(); renderBuy(); },
+    step: (d) => {
+      const delta = Number(d.delta);
+      if (d.target === 'groupCount') {
+        groupCount = clamp(groupCount + delta, GROUP_RANGE);
+        el.groupCount.value = groupCount;
+        return;
+      }
+      const s = buildState[Number(d.index)];
+      const range = d.target === 'base' ? BASE_RANGE : BONUS_RANGE;
+      s[d.target] = clamp(s[d.target] + delta, range);
+      renderBuy();
+    },
+  };
+
+  document.addEventListener('click', (e) => {
+    const trigger = e.target.closest('[data-action]');
+    if (!trigger) return;
+    const handler = ACTIONS[trigger.dataset.action];
+    if (handler) handler(trigger.dataset);
+  });
+
+  /* ---------- 初始化 ---------- */
+  el.totalLabel.textContent = TOTAL_POINTS;
+  el.groupCount.value = groupCount;
+  initBuyTable();
+  initCostTable();
+  renderBuy();
+})();
+</script>
+</body>
+</html>
